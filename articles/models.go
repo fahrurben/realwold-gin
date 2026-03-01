@@ -46,6 +46,13 @@ func FindOne(condition interface{}) (*ArticleModel, error) {
 	return &model, result.Error
 }
 
+func Delete(condition interface{}) error {
+	db := common.GetDB()
+	result := db.Where(condition).Delete(&ArticleModel{})
+
+	return result.Error
+}
+
 func (article ArticleModel) favoritesCount() uint {
 	db := common.GetDB()
 	var count int64

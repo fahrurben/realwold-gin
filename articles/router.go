@@ -12,6 +12,7 @@ import (
 func ArticleRegister(router *gin.RouterGroup) {
 	router.POST("", ArticleSave)
 	router.PUT("/:slug", ArticleUpdate)
+	router.DELETE("/:slug", ArticleDelete)
 }
 
 func PublicRegister(router *gin.RouterGroup) {
@@ -118,4 +119,22 @@ func ArticleUpdate(c *gin.Context) {
 
 	serializer := ArticleSerializer{Model: model, C: c}
 	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
+}
+
+func ArticleDelete(c *gin.Context) {
+	slug := c.Param("slug")
+
+	_, err := FindOne(&ArticleModel{Slug: slug})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		return
+	}
+
+	if err := Delete(&ArticleModel{Slug: slug}); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
 }
