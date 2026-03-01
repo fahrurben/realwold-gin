@@ -39,9 +39,12 @@ func main() {
 
 	v1 := router.Group("/api")
 
+	v1.Use(users.AuthMiddleware(false))
+	users.UsersRegister(v1.Group("/users"))
+	articles.PublicRegister(v1.Group("/articles"))
+
 	v1.Use(users.AuthMiddleware(true))
 
-	users.UserRegister(v1.Group("/users"))
 	articles.ArticleRegister(v1.Group("/articles"))
 
 	router.Run(":8000")

@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func UserRegister(router *gin.RouterGroup) {
+func UsersRegister(router *gin.RouterGroup) {
 	router.POST("/login", UsersLogin)
 }
 
