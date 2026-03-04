@@ -46,6 +46,11 @@ type ArticleResponse struct {
 	UpdatedAt      string              `json:"updated_at"`
 }
 
+type ArticlesSerializer struct {
+	C        *gin.Context
+	Articles []*ArticleModel
+}
+
 func (self *ArticleSerializer) Response() ArticleResponse {
 	myUserModel := self.C.MustGet("my_user_model").(users.UserModel)
 
@@ -71,4 +76,36 @@ func (self *ArticleSerializer) Response() ArticleResponse {
 	articleResponse.Tags = tags
 
 	return articleResponse
+}
+
+func (self *ArticlesSerializer) Response() []ArticleResponse {
+	myUserModel := self.C.MustGet("my_user_model").(users.UserModel)
+	results := []ArticleResponse{}
+
+	for _, articleModel := range self.Articles {
+		articleUserSerializer := ArticleUserSerializer{Model: &articleModel.Author}
+		articleResponse := ArticleResponse{
+			Title:          articleModel.Title,
+			Slug:           articleModel.Slug,
+			Description:    articleModel.Description,
+			Body:           articleModel.Body,
+			Author:         articleUserSerializer.Response(),
+			Favorited:      articleModel.isFavoritedBy(myUserModel),
+			FavoritesCount: articleModel.favoritesCount(),
+			CreatedAt:      articleModel.CreatedAt.Format(common.DATE_FORMAT),
+			UpdatedAt:      articleModel.UpdatedAt.Format(common.DATE_FORMAT),
+		}
+
+		tags := []string{}
+
+		for _, tagModel := range articleModel.Tags {
+			tags = append(tags, tagModel.Tag)
+		}
+
+		articleResponse.Tags = tags
+
+		results = append(results, articleResponse)
+	}
+
+	return results
 }

@@ -2,6 +2,7 @@ package articles
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/fahrurben/realworld-gin/common"
 	"github.com/fahrurben/realworld-gin/users"
@@ -17,6 +18,7 @@ func ArticleRegister(router *gin.RouterGroup) {
 
 func PublicRegister(router *gin.RouterGroup) {
 	router.GET("/:slug", ArticleGet)
+	router.GET("", ArticleList)
 }
 
 func ArticleSave(c *gin.Context) {
@@ -137,4 +139,21 @@ func ArticleDelete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{})
+}
+
+func ArticleList(c *gin.Context) {
+	tag := c.Query("tag")
+	author := c.Query("author")
+	favorited := c.Query("favorited")
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	articleModels, count := List(tag, author, favorited, uint(offset), uint(limit))
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+	}
+
+	serializer := ArticlesSerializer{Articles: articleModels, C: c}
+	c.JSON(http.StatusOK, gin.H{"articles": serializer.Response(), "articlesCount": count})
 }

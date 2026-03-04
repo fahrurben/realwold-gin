@@ -71,3 +71,37 @@ func (article ArticleModel) isFavoritedBy(user users.UserModel) bool {
 	}).First(&favoriteModel)
 	return favoriteModel.ID != 0
 }
+
+func List(tag string, author string, favorited string, offset uint, limit uint) ([]*ArticleModel, int64) {
+	db := common.GetDB()
+	var articles []*ArticleModel
+	var count int64
+	condition := make(map[string]interface{})
+
+	query := db.Preload("Author").Preload("Tags")
+
+	if tag != "" {
+		query = query.Joins("inner join article_tags on article_tags.article_model_id = article_models.id")
+		query = query.Joins("inner join tag_models on article_tags.tag_model_id = tag_models.id")
+	}
+
+	if author != "" {
+		query = query.Joins("inner join user_models on article_models.author_id = user_models.id")
+	}
+
+	if tag != "" {
+		condition["tag_models.tag"] = tag
+	}
+
+	if author != "" {
+		condition["user_models.username"] = author
+	}
+
+	queryData := query.Where(condition).Limit(int(limit)).Offset(int(offset))
+	queryCount := query.Where(condition).Limit(int(limit)).Offset(int(offset))
+
+	queryData.Find(&articles)
+	queryCount.Count(&count)
+
+	return articles, count
+}
