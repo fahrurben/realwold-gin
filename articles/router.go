@@ -14,6 +14,8 @@ func ArticleRegister(router *gin.RouterGroup) {
 	router.POST("", ArticleSave)
 	router.PUT("/:slug", ArticleUpdate)
 	router.DELETE("/:slug", ArticleDelete)
+	router.POST("/:slug/favorite", FavoriteArticle)
+	router.DELETE("/:slug/favorite", UnfavoriteArticle)
 }
 
 func PublicRegister(router *gin.RouterGroup) {
@@ -156,4 +158,36 @@ func ArticleList(c *gin.Context) {
 
 	serializer := ArticlesSerializer{Articles: articleModels, C: c}
 	c.JSON(http.StatusOK, gin.H{"articles": serializer.Response(), "articlesCount": count})
+}
+
+func FavoriteArticle(c *gin.Context) {
+	slug := c.Param("slug")
+
+	articleModel, err := FindOne(&ArticleModel{Slug: slug})
+	user := c.MustGet("my_user_model").(users.UserModel)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+	}
+
+	articleModel.setFavoriteBy(user)
+
+	serializer := ArticleSerializer{Model: articleModel, C: c}
+	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
+}
+
+func UnfavoriteArticle(c *gin.Context) {
+	slug := c.Param("slug")
+
+	articleModel, err := FindOne(&ArticleModel{Slug: slug})
+	user := c.MustGet("my_user_model").(users.UserModel)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+	}
+
+	articleModel.unFavoriteBy(user)
+
+	serializer := ArticleSerializer{Model: articleModel, C: c}
+	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
 }

@@ -105,3 +105,37 @@ func List(tag string, author string, favorited string, offset uint, limit uint) 
 
 	return articles, count
 }
+
+func (article ArticleModel) setFavoriteBy(user users.UserModel) error {
+	db := common.GetDB()
+
+	var existingModel FavoriteModel
+	db.Where(FavoriteModel{
+		UserModelID:    user.ID,
+		ArticleModelID: article.ID,
+	}).First(&existingModel)
+
+	if existingModel.ID == 0 {
+		favoriteModel := FavoriteModel{UserModel: user, ArticleModel: article}
+		result := db.Save(&favoriteModel)
+		return result.Error
+	}
+
+	return nil
+}
+
+func (article ArticleModel) unFavoriteBy(user users.UserModel) error {
+	db := common.GetDB()
+
+	var existingModel FavoriteModel
+	db.Where(FavoriteModel{
+		UserModelID:    user.ID,
+		ArticleModelID: article.ID,
+	}).First(&existingModel)
+
+	if existingModel.ID != 0 {
+		db.Delete(&existingModel)
+	}
+
+	return nil
+}
