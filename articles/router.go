@@ -16,6 +16,7 @@ func ArticleRegister(router *gin.RouterGroup) {
 	router.DELETE("/:slug", ArticleDelete)
 	router.POST("/:slug/favorite", FavoriteArticle)
 	router.DELETE("/:slug/favorite", UnfavoriteArticle)
+	router.POST("/:slug/comments", AddComment)
 }
 
 func PublicRegister(router *gin.RouterGroup) {
@@ -189,5 +190,36 @@ func UnfavoriteArticle(c *gin.Context) {
 	articleModel.unFavoriteBy(user)
 
 	serializer := ArticleSerializer{Model: articleModel, C: c}
+	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
+}
+
+func AddComment(c *gin.Context) {
+	slug := c.Param("slug")
+
+	user := c.MustGet("my_user_model").(users.UserModel)
+	articleModel, err := FindOne(&ArticleModel{Slug: slug})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+	}
+
+	commentValidator := NewCommentValidator()
+
+	if err := c.ShouldBindJSON(&commentValidator); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	model := Comment{}
+	model.Body = commentValidator.Comment.Body
+	model.ArticleModel = *articleModel
+	model.AuthorModel = user
+
+	err = SaveOne(&model)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot save comment"})
+	}
+
+	serializer := CommentSerializer{Model: &model, C: c}
 	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
 }

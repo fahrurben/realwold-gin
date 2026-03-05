@@ -34,6 +34,7 @@ type ArticleSerializer struct {
 }
 
 type ArticleResponse struct {
+	ID             uint                `json:"id"`
 	Title          string              `json:"title"`
 	Slug           string              `json:"slug"`
 	Description    string              `json:"description"`
@@ -42,8 +43,8 @@ type ArticleResponse struct {
 	Tags           []string            `json:"tagList"`
 	Favorited      bool                `json:"favorited"`
 	FavoritesCount uint                `json:"favoritesCount"`
-	CreatedAt      string              `json:"created_at"`
-	UpdatedAt      string              `json:"updated_at"`
+	CreatedAt      string              `json:"createdAt"`
+	UpdatedAt      string              `json:"updatedAt"`
 }
 
 type ArticlesSerializer struct {
@@ -56,6 +57,7 @@ func (self *ArticleSerializer) Response() ArticleResponse {
 
 	articleUserSerializer := ArticleUserSerializer{Model: &self.Model.Author}
 	articleResponse := ArticleResponse{
+		ID:             self.Model.ID,
 		Title:          self.Model.Title,
 		Slug:           self.Model.Slug,
 		Description:    self.Model.Description,
@@ -108,4 +110,55 @@ func (self *ArticlesSerializer) Response() []ArticleResponse {
 	}
 
 	return results
+}
+
+type CommentSerializer struct {
+	C     *gin.Context
+	Model *Comment
+}
+
+type CommentsSerializer struct {
+	C        *gin.Context
+	Comments []*Comment
+}
+
+type CommentResponse struct {
+	ID        uint                `json:"id"`
+	Body      string              `json:"body"`
+	Author    ArticleUserResponse `json:"author"`
+	CreatedAt string              `json:"createdAt"`
+	UpdatedAt string              `json:"updatedAt"`
+}
+
+func (self *CommentSerializer) Response() CommentResponse {
+
+	authorSerializer := ArticleUserSerializer{Model: &self.Model.AuthorModel}
+	commentResponse := CommentResponse{
+		ID:        self.Model.ID,
+		Body:      self.Model.Body,
+		Author:    authorSerializer.Response(),
+		CreatedAt: self.Model.CreatedAt.Format(common.DATE_FORMAT),
+		UpdatedAt: self.Model.UpdatedAt.Format(common.DATE_FORMAT),
+	}
+
+	return commentResponse
+}
+
+func (self *CommentsSerializer) Response() []CommentResponse {
+	commentResponses := []CommentResponse{}
+
+	for _, comment := range self.Comments {
+		authorSerializer := ArticleUserSerializer{Model: &comment.AuthorModel}
+		commentResponse := CommentResponse{
+			ID:        comment.ID,
+			Body:      comment.Body,
+			Author:    authorSerializer.Response(),
+			CreatedAt: comment.CreatedAt.Format(common.DATE_FORMAT),
+			UpdatedAt: comment.UpdatedAt.Format(common.DATE_FORMAT),
+		}
+
+		commentResponses = append(commentResponses, commentResponse)
+	}
+
+	return commentResponses
 }

@@ -13,3 +13,13 @@ type ArticleValidator struct {
 func NewArticleValidator() ArticleValidator {
 	return ArticleValidator{}
 }
+
+type CommentValidator struct {
+	Comment struct {
+		Body string `json:"body" binding:"required,min=4"`
+	} `json:"comment"`
+}
+
+func NewCommentValidator() CommentValidator {
+	return CommentValidator{}
+}

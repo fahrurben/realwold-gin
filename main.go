@@ -17,6 +17,7 @@ func Migrate(db *gorm.DB) {
 	db.AutoMigrate(&articles.ArticleModel{})
 	db.AutoMigrate(&articles.TagModel{})
 	db.AutoMigrate(&articles.FavoriteModel{})
+	db.AutoMigrate(&articles.Comment{})
 }
 
 func main() {

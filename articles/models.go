@@ -32,6 +32,15 @@ type FavoriteModel struct {
 	ArticleModel   ArticleModel
 }
 
+type Comment struct {
+	gorm.Model
+	AuthorModelID  uint
+	AuthorModel    users.UserModel
+	ArticleModelID uint
+	ArticleModel   ArticleModel
+	Body           string `gorm:"type:text"`
+}
+
 func SaveOne(data interface{}) error {
 	db := common.GetDB()
 	error := db.Save(data).Error
