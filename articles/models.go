@@ -16,6 +16,7 @@ type ArticleModel struct {
 	Author         users.UserModel
 	Tags           []TagModel      `gorm:"many2many:article_tags"`
 	FavoriteModels []FavoriteModel `gorm:"ForeignKey:ArticleModelID"`
+	Comments       []Comment       `gorm:"ForeignKey:ArticleModelID"`
 }
 
 type TagModel struct {
@@ -55,11 +56,11 @@ func FindOne(condition interface{}) (*ArticleModel, error) {
 	return &model, result.Error
 }
 
-func Delete(condition interface{}) error {
+func Delete(condition interface{}) (int64, error) {
 	db := common.GetDB()
-	result := db.Where(condition).Delete(&ArticleModel{})
+	result := db.Where(condition).Delete(condition)
 
-	return result.Error
+	return result.RowsAffected, result.Error
 }
 
 func (article ArticleModel) favoritesCount() uint {
@@ -79,6 +80,15 @@ func (article ArticleModel) isFavoritedBy(user users.UserModel) bool {
 		ArticleModelID: article.ID,
 	}).First(&favoriteModel)
 	return favoriteModel.ID != 0
+}
+
+func (article ArticleModel) GetComments() ([]*Comment, error) {
+	db := common.GetDB()
+
+	comments := []*Comment{}
+	error := db.Model(&article).Association("Comments").Find(&comments)
+
+	return comments, error
 }
 
 func List(tag string, author string, favorited string, offset uint, limit uint) ([]*ArticleModel, int64) {

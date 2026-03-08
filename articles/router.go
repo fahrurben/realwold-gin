@@ -8,6 +8,7 @@ import (
 	"github.com/fahrurben/realworld-gin/users"
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
+	"gorm.io/gorm"
 )
 
 func ArticleRegister(router *gin.RouterGroup) {
@@ -17,11 +18,13 @@ func ArticleRegister(router *gin.RouterGroup) {
 	router.POST("/:slug/favorite", FavoriteArticle)
 	router.DELETE("/:slug/favorite", UnfavoriteArticle)
 	router.POST("/:slug/comments", AddComment)
+	router.DELETE("/:slug/comments/:id", CommentDelete)
 }
 
 func PublicRegister(router *gin.RouterGroup) {
 	router.GET("/:slug", ArticleGet)
 	router.GET("", ArticleList)
+	router.GET("/:slug/comments", GetComments)
 }
 
 func ArticleSave(c *gin.Context) {
@@ -136,7 +139,7 @@ func ArticleDelete(c *gin.Context) {
 		return
 	}
 
-	if err := Delete(&ArticleModel{Slug: slug}); err != nil {
+	if _, err := Delete(&ArticleModel{Slug: slug}); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -222,4 +225,46 @@ func AddComment(c *gin.Context) {
 
 	serializer := CommentSerializer{Model: &model, C: c}
 	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
+}
+
+func GetComments(c *gin.Context) {
+	slug := c.Param("slug")
+
+	articleModel, err := FindOne(&ArticleModel{Slug: slug})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+	}
+
+	comments, err := articleModel.GetComments()
+
+	serializer := CommentsSerializer{Comments: comments, C: c}
+	c.JSON(http.StatusOK, gin.H{"comments": serializer.Response()})
+}
+
+func CommentDelete(c *gin.Context) {
+	slug := c.Param("slug")
+	idParam := c.Param("id")
+	id, _ := strconv.Atoi(idParam)
+
+	_, err := FindOne(&ArticleModel{Slug: slug})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		return
+	}
+
+	row, err := Delete(&Comment{Model: gorm.Model{ID: uint(id)}})
+
+	if row == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
 }
