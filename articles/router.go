@@ -35,9 +35,18 @@ func ArticleSave(c *gin.Context) {
 		return
 	}
 
+	slug := slug.Make(articleValidator.Article.Title)
+
+	existingModel, _ := FindOne(&ArticleModel{Slug: slug})
+
+	if existingModel.ID != 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article with same title already exist"})
+		return
+	}
+
 	model := ArticleModel{}
 	model.Title = articleValidator.Article.Title
-	model.Slug = slug.Make(model.Title)
+	model.Slug = slug
 	model.Description = articleValidator.Article.Description
 	model.Body = articleValidator.Article.Body
 	model.Author = c.MustGet("my_user_model").(users.UserModel)
@@ -95,6 +104,14 @@ func ArticleUpdate(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		return
+	}
+
+	newSlug := slug.Make(articleValidator.Article.Title)
+	existingModel, _ := FindOneExcept(&ArticleModel{Slug: newSlug}, model.ID)
+
+	if existingModel.ID != 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Article with same title already exist"})
 		return
 	}
 

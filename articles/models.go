@@ -56,6 +56,14 @@ func FindOne(condition interface{}) (*ArticleModel, error) {
 	return &model, result.Error
 }
 
+func FindOneExcept(condition interface{}, modelID uint) (*ArticleModel, error) {
+	db := common.GetDB()
+	var model ArticleModel
+	result := db.Preload("Author").Preload("Tags").Where(condition).Not("ID = ?", modelID).First(&model)
+
+	return &model, result.Error
+}
+
 func Delete(condition interface{}) (int64, error) {
 	db := common.GetDB()
 	result := db.Where(condition).Delete(condition)
