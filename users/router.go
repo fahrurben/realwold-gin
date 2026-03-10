@@ -10,6 +10,7 @@ import (
 
 func UsersRegister(router *gin.RouterGroup) {
 	router.POST("/login", UsersLogin)
+	router.POST("", UserRegister)
 }
 
 func UsersLogin(c *gin.Context) {
@@ -33,5 +34,24 @@ func UsersLogin(c *gin.Context) {
 
 	UpdateContextUserModel(c, userModel.ID)
 	serializer := UserSerializer{&userModel}
+	c.JSON(http.StatusOK, gin.H{"user": serializer.Response()})
+}
+
+func UserRegister(c *gin.Context) {
+	registerValidator := RegisterValidator{}
+	if err := c.ShouldBindJSON(&registerValidator); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userModel, err := Register(registerValidator)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	UpdateContextUserModel(c, userModel.ID)
+	serializer := UserSerializer{userModel}
 	c.JSON(http.StatusOK, gin.H{"user": serializer.Response()})
 }
