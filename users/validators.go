@@ -14,3 +14,13 @@ type RegisterValidator struct {
 		Password string `json:"password" bidning:"required"`
 	} `json:"user"`
 }
+
+type UpdateValidator struct {
+	User struct {
+		Email    string `json:"email" binding:"omitempty,email"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Bio      string `json:"bio"`
+		Image    string `json:"image"`
+	}
+}

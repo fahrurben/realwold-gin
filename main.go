@@ -49,6 +49,7 @@ func main() {
 	v1.Use(users.AuthMiddleware(true))
 
 	articles.ArticleRegister(v1.Group("/articles"))
+	users.UserEndpoint(v1.Group("/user"))
 
 	router.Run(":8000")
 }

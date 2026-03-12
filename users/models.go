@@ -44,3 +44,35 @@ func Register(data RegisterValidator) (*UserModel, error) {
 	error := db.Save(&model).Error
 	return &model, error
 }
+
+func Update(userModel UserModel, data UpdateValidator) (*UserModel, error) {
+	db := common.GetDB()
+
+	if data.User.Email != "" {
+		userModel.Email = data.User.Email
+	}
+
+	if data.User.Username != "" {
+		userModel.Username = data.User.Username
+	}
+
+	if data.User.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(data.User.Password), bcrypt.DefaultCost)
+
+		if err != nil {
+			return nil, err
+		}
+		userModel.PasswordHash = string(hashedPassword)
+	}
+
+	if data.User.Bio != "" {
+		userModel.Bio = data.User.Bio
+	}
+
+	if data.User.Image != "" {
+		userModel.Image = data.User.Image
+	}
+
+	error := db.Save(&userModel).Error
+	return &userModel, error
+}
