@@ -45,11 +45,13 @@ func main() {
 	v1.Use(users.AuthMiddleware(false))
 	users.UsersRegister(v1.Group("/users"))
 	articles.PublicRegister(v1.Group("/articles"))
+	users.PublicProfilesRegister(v1.Group("/profiles"))
 
 	v1.Use(users.AuthMiddleware(true))
 
 	articles.ArticleRegister(v1.Group("/articles"))
 	users.UserEndpoint(v1.Group("/user"))
+	users.PrivateProfilesRegister(v1.Group("/profiles"))
 
 	router.Run(":8000")
 }

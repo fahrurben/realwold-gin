@@ -7,12 +7,13 @@ import (
 )
 
 type UserModel struct {
-	ID           uint   `gorm:"primaryKey"`
-	Username     string `gorm:"column:username;uniqueIndex"`
-	Email        string `gorm:"column:email;uniqueIndex"`
-	Bio          string `gorm:"column:bio;size:1024"`
-	Image        string `gorm:"column:image"`
-	PasswordHash string `gorm:"column:password;not null"`
+	ID           uint         `gorm:"primaryKey"`
+	Username     string       `gorm:"column:username;uniqueIndex"`
+	Email        string       `gorm:"column:email;uniqueIndex"`
+	Bio          string       `gorm:"column:bio;size:1024"`
+	Image        string       `gorm:"column:image"`
+	PasswordHash string       `gorm:"column:password;not null"`
+	Follows      []*UserModel `gorm:"many2many:user_follows"`
 }
 
 func FindOneUser(condition any) (UserModel, error) {
@@ -26,6 +27,18 @@ func (u *UserModel) checkPassword(password string) error {
 	bytePassword := []byte(password)
 	byteHashedPassword := []byte(u.PasswordHash)
 	return bcrypt.CompareHashAndPassword(byteHashedPassword, bytePassword)
+}
+
+func (u *UserModel) followUser(followed UserModel) error {
+	db := common.GetDB()
+	err := db.Model(u).Association("Follows").Append(&followed)
+	return err
+}
+
+func (u *UserModel) unfollowUser(followed UserModel) error {
+	db := common.GetDB()
+	err := db.Model(u).Association("Follows").Delete(&followed)
+	return err
 }
 
 func Register(data RegisterValidator) (*UserModel, error) {

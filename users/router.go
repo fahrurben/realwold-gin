@@ -18,6 +18,15 @@ func UserEndpoint(router *gin.RouterGroup) {
 	router.PUT("", UpdateUser)
 }
 
+func PublicProfilesRegister(router *gin.RouterGroup) {
+	router.GET("/:username", GetProfile)
+}
+
+func PrivateProfilesRegister(router *gin.RouterGroup) {
+	router.POST("/:username/follow", FollowUser)
+	router.DELETE("/:username/follow", UnfollowUser)
+}
+
 func UsersLogin(c *gin.Context) {
 	loginValidator := LoginValidator{}
 	if err := c.ShouldBindJSON(&loginValidator); err != nil {
@@ -32,7 +41,7 @@ func UsersLogin(c *gin.Context) {
 		return
 	}
 
-	if userModel.checkPassword(loginValidator.User.Password) != nil {
+	if err := userModel.checkPassword(loginValidator.User.Password); err != nil {
 		c.JSON(http.StatusUnauthorized, common.NewError("Wrong email or password", err))
 		return
 	}
@@ -86,4 +95,63 @@ func UpdateUser(c *gin.Context) {
 
 	serializer := UserSerializer{model: updatedModel}
 	c.JSON(http.StatusOK, gin.H{"user": serializer.Response()})
+}
+
+func GetProfile(c *gin.Context) {
+	username := c.Param("username")
+	loggedInUser := c.MustGet("my_user_model").(UserModel)
+
+	userModel, err := FindOneUser(&UserModel{Username: username})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	serializer := ProfileSerialier{model: &userModel, loggedInUser: &loggedInUser}
+	c.JSON(http.StatusOK, gin.H{"user": serializer.ProfileResponse()})
+}
+
+func FollowUser(c *gin.Context) {
+	username := c.Param("username")
+	loggedInUser := c.MustGet("my_user_model").(UserModel)
+
+	follow, err := FindOneUser(&UserModel{Username: username})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = loggedInUser.followUser(follow)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	serializer := ProfileSerialier{model: &loggedInUser, loggedInUser: &loggedInUser}
+	c.JSON(http.StatusOK, gin.H{"user": serializer.ProfileResponse()})
+}
+
+func UnfollowUser(c *gin.Context) {
+	username := c.Param("username")
+	loggedInUser := c.MustGet("my_user_model").(UserModel)
+
+	follow, err := FindOneUser(&UserModel{Username: username})
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = loggedInUser.unfollowUser(follow)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	serializer := ProfileSerialier{model: &loggedInUser, loggedInUser: &loggedInUser}
+	c.JSON(http.StatusOK, gin.H{"user": serializer.ProfileResponse()})
 }
