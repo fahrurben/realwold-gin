@@ -1,9 +1,11 @@
 package users
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/fahrurben/realworld-gin/common"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,19 +32,19 @@ func PrivateProfilesRegister(router *gin.RouterGroup) {
 func UsersLogin(c *gin.Context) {
 	loginValidator := LoginValidator{}
 	if err := c.ShouldBindJSON(&loginValidator); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("validation", err))
 		return
 	}
 
 	userModel, err := FindOneUser(&UserModel{Email: loginValidator.User.Email})
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, common.NewError("Wrong email or password", err))
+		c.JSON(http.StatusUnauthorized, common.NewError("login", errors.New("Wrong email or password")))
 		return
 	}
 
 	if err := userModel.checkPassword(loginValidator.User.Password); err != nil {
-		c.JSON(http.StatusUnauthorized, common.NewError("Wrong email or password", err))
+		c.JSON(http.StatusUnauthorized, common.NewError("login", errors.New("Wrong email or password")))
 		return
 	}
 
@@ -54,14 +56,14 @@ func UsersLogin(c *gin.Context) {
 func UserRegister(c *gin.Context) {
 	registerValidator := RegisterValidator{}
 	if err := c.ShouldBindJSON(&registerValidator); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("validation", err))
 		return
 	}
 
 	userModel, err := Register(registerValidator)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
@@ -82,14 +84,14 @@ func UpdateUser(c *gin.Context) {
 	userModel := c.MustGet("my_user_model").(UserModel)
 
 	if err := c.ShouldBindJSON(&updateValidator); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("validation", err))
 		return
 	}
 
 	updatedModel, err := Update(userModel, updateValidator)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
@@ -104,7 +106,12 @@ func GetProfile(c *gin.Context) {
 	userModel, err := FindOneUser(&UserModel{Username: username})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
@@ -119,14 +126,19 @@ func FollowUser(c *gin.Context) {
 	follow, err := FindOneUser(&UserModel{Username: username})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
 	err = loggedInUser.followUser(follow)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
@@ -141,14 +153,18 @@ func UnfollowUser(c *gin.Context) {
 	follow, err := FindOneUser(&UserModel{Username: username})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("Entity not found")))
+			return
+		}
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
 	err = loggedInUser.unfollowUser(follow)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 

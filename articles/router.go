@@ -1,6 +1,7 @@
 package articles
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -31,7 +32,7 @@ func ArticleSave(c *gin.Context) {
 	articleValidator := NewArticleValidator()
 
 	if err := c.ShouldBindJSON(&articleValidator); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
@@ -40,7 +41,7 @@ func ArticleSave(c *gin.Context) {
 	existingModel, _ := FindOne(&ArticleModel{Slug: slug})
 
 	if existingModel.ID != 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article with same title already exist"})
+		c.JSON(http.StatusBadRequest, common.NewError("article", errors.New("Article with same title already exist")))
 		return
 	}
 
@@ -59,7 +60,12 @@ func ArticleSave(c *gin.Context) {
 		result := db.Where("tag = ?", tagStr).FirstOrInit(&tagModel, TagModel{Tag: tagStr})
 
 		if result.Error != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": result.Error})
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusNotFound, common.NewError("tag", errors.New("Entity not found")))
+				return
+			}
+
+			c.JSON(http.StatusBadRequest, common.NewError("database", result.Error))
 		}
 
 		tagModels = append(tagModels, tagModel)
@@ -68,7 +74,7 @@ func ArticleSave(c *gin.Context) {
 	model.Tags = tagModels
 
 	if err := SaveOne(&model); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
 		return
 	}
 
@@ -82,7 +88,12 @@ func ArticleGet(c *gin.Context) {
 	articleModel, err := FindOne(&ArticleModel{Slug: slug})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	serializer := ArticleSerializer{Model: articleModel, C: c}
@@ -94,7 +105,7 @@ func ArticleUpdate(c *gin.Context) {
 	articleValidator := NewArticleValidator()
 
 	if err := c.ShouldBindJSON(&articleValidator); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("validation", err))
 		return
 	}
 
@@ -103,15 +114,19 @@ func ArticleUpdate(c *gin.Context) {
 	model, err := FindOne(&ArticleModel{Slug: articleSlug})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
-		return
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	newSlug := slug.Make(articleValidator.Article.Title)
 	existingModel, _ := FindOneExcept(&ArticleModel{Slug: newSlug}, model.ID)
 
 	if existingModel.ID != 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article with same title already exist"})
+		c.JSON(http.StatusBadRequest, common.NewError("article", errors.New("Article with same title already exist")))
 		return
 	}
 
@@ -128,8 +143,13 @@ func ArticleUpdate(c *gin.Context) {
 		db := common.GetDB()
 		result := db.Where("tag = ?", tagStr).FirstOrInit(&tagModel, TagModel{Tag: tagStr})
 
-		if result.Error != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": result.Error})
+		if err := result.Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+				return
+			}
+
+			c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		}
 
 		tagModels = append(tagModels, tagModel)
@@ -137,9 +157,13 @@ func ArticleUpdate(c *gin.Context) {
 
 	model.Tags = tagModels
 
-	if err := SaveOne(&model); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
-		return
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	serializer := ArticleSerializer{Model: model, C: c}
@@ -152,8 +176,12 @@ func ArticleDelete(c *gin.Context) {
 	_, err := FindOne(&ArticleModel{Slug: slug})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
-		return
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	if _, err := Delete(&ArticleModel{Slug: slug}); err != nil {
@@ -174,7 +202,12 @@ func ArticleList(c *gin.Context) {
 	articleModels, count := List(tag, author, favorited, uint(offset), uint(limit))
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	serializer := ArticlesSerializer{Articles: articleModels, C: c}
@@ -188,7 +221,12 @@ func FavoriteArticle(c *gin.Context) {
 	user := c.MustGet("my_user_model").(users.UserModel)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	articleModel.setFavoriteBy(user)
@@ -204,7 +242,12 @@ func UnfavoriteArticle(c *gin.Context) {
 	user := c.MustGet("my_user_model").(users.UserModel)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	articleModel.unFavoriteBy(user)
@@ -220,13 +263,17 @@ func AddComment(c *gin.Context) {
 	articleModel, err := FindOne(&ArticleModel{Slug: slug})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
-	}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
 
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
+	}
 	commentValidator := NewCommentValidator()
 
 	if err := c.ShouldBindJSON(&commentValidator); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("validation", err))
 		return
 	}
 
@@ -237,7 +284,7 @@ func AddComment(c *gin.Context) {
 
 	err = SaveOne(&model)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot save comment"})
+		c.JSON(http.StatusBadRequest, common.NewError("database", errors.New("Cannot save comment")))
 	}
 
 	serializer := CommentSerializer{Model: &model, C: c}
@@ -250,7 +297,12 @@ func GetComments(c *gin.Context) {
 	articleModel, err := FindOne(&ArticleModel{Slug: slug})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	comments, err := articleModel.GetComments()
@@ -267,19 +319,23 @@ func CommentDelete(c *gin.Context) {
 	_, err := FindOne(&ArticleModel{Slug: slug})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article not found"})
-		return
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, common.NewError("article", errors.New("Entity not found")))
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 	}
 
 	row, err := Delete(&Comment{Model: gorm.Model{ID: uint(id)}})
 
 	if row == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Comment not found"})
+		c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Entity not found")))
 		return
 	}
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, common.NewError("database", err))
 		return
 	}
 
